@@ -165,8 +165,25 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     _toolbar.barTintColor = nil;
     [_toolbar setBackgroundImage:nil forToolbarPosition:UIToolbarPositionAny barMetrics:UIBarMetricsDefault];
     [_toolbar setBackgroundImage:nil forToolbarPosition:UIToolbarPositionAny barMetrics:UIBarMetricsLandscapePhone];
+    [_toolbar setBackgroundColor:[UIColor blackColor]];
     _toolbar.barStyle = UIBarStyleBlackTranslucent;
     _toolbar.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleWidth;
+    
+    // add toast label
+    CGSize screenSize = [UIScreen mainScreen].bounds.size;
+    _toastLb = [[UILabel alloc] initWithFrame:CGRectMake(0, screenSize.height - _toolbar.frame.size.height - 20, screenSize.width, 30)];
+    _toastLb.layer.cornerRadius = 4;
+    _toastLb.backgroundColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.4];
+    _toastLb.textColor = [UIColor whiteColor];
+    _toastLb.font = [UIFont systemFontOfSize:13];
+    _toastLb.textAlignment = NSTextAlignmentCenter;
+    _toastLb.text = @"Successfully save to camera roll";
+    
+    
+    // add upper line
+    UIView *line = [[UIView alloc] initWithFrame:CGRectMake(0, 0, _toolbar.frame.size.width, 0.5)];
+    line.backgroundColor = [UIColor colorWithRed:190.0/255 green:198.0/255 blue:198.0/255 alpha:0.5];
+    [_toolbar addSubview:line];
     
     // Toolbar Items
     if (self.displayNavArrows) {
@@ -176,8 +193,25 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         _previousButton = [[UIBarButtonItem alloc] initWithImage:previousButtonImage style:UIBarButtonItemStylePlain target:self action:@selector(gotoPreviousPage)];
         _nextButton = [[UIBarButtonItem alloc] initWithImage:nextButtonImage style:UIBarButtonItemStylePlain target:self action:@selector(gotoNextPage)];
     }
+    
+    // share item
     if (self.displayActionButton) {
-        _actionButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonPressed:)];
+        
+        // share item
+        
+        UIImage *shareImg = [UIImage imageForResourcePath:@"MWPhotoBrowser.bundle/UIBarButtonItemArrowLeft" ofType:@"png" inBundle:[NSBundle bundleForClass:[self class]]];
+//        UIButton *shareBtn = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, 26, 23)];
+//        [shareBtn setImage:[UIImage imageNamed:shareImg] forState:UIControlStateNormal];
+//        [shareBtn addTarget:self action:@selector(actionButtonPressed:) forControlEvents:UIControlEventTouchUpInside];
+        _shareButton = [[UIBarButtonItem alloc] initWithImage:shareImg style:UIBarButtonItemStylePlain target:self action:@selector(actionButtonPressed:)];
+       
+        // save item
+        UIImage *downloadImg = [UIImage imageForResourcePath:@"MWPhotoBrowser.bundle/UIBarButtonItemArrowRight" ofType:@"png" inBundle:[NSBundle bundleForClass:[self class]]];
+//        UIButton *downloadBtn = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, 29, 29)];
+//        [downloadBtn setImage:[UIImage imageNamed:downloadImg] forState:UIControlStateNormal];
+//        [downloadBtn addTarget:self action:@selector(actionSavePhoto:) forControlEvents:UIControlEventTouchUpInside];
+            _saveButton = [[UIBarButtonItem alloc] initWithImage:downloadImg style:UIBarButtonItemStylePlain target:self action:@selector(actionSavePhoto:)];
+        
     }
     
     // Update
@@ -193,6 +227,16 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 	// Super
     [super viewDidLoad];
 	
+}
+
+- (void)showToast:(BOOL)isShow {
+
+    if (isShow) {
+        [self.view addSubview:self.toastLb];
+    }
+    else {
+        [self.toastLb  removeFromSuperview];
+    }
 }
 
 - (void)performLayout {
@@ -220,7 +264,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     } else {
         // We're not first so show back button
         UIViewController *previousViewController = [self.navigationController.viewControllers objectAtIndex:self.navigationController.viewControllers.count-2];
-        NSString *backButtonTitle = previousViewController.navigationItem.backBarButtonItem ? previousViewController.navigationItem.backBarButtonItem.title : previousViewController.title;
+        NSString *backButtonTitle = @"";
         UIBarButtonItem *newBackButton = [[UIBarButtonItem alloc] initWithTitle:backButtonTitle style:UIBarButtonItemStylePlain target:nil action:nil];
         // Appearance
         [newBackButton setBackButtonBackgroundImage:nil forState:UIControlStateNormal barMetrics:UIBarMetricsDefault];
@@ -232,41 +276,84 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         _previousViewControllerBackButton = previousViewController.navigationItem.backBarButtonItem; // remember previous
         previousViewController.navigationItem.backBarButtonItem = newBackButton;
     }
+    
+    // right naviation bar item
+    if (_enableGrid) {
+        
+        UIBarButtonItem *gridMenuItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageForResourcePath:@"MWPhotoBrowser.bundle/UIBarButtonItemGrid" ofType:@"png" inBundle:[NSBundle bundleForClass:[self class]]] style:UIBarButtonItemStylePlain target:self action:@selector(showGridAnimated)];
+        self.navigationItem.rightBarButtonItem = gridMenuItem;
+    }
 
     // Toolbar items
     BOOL hasItems = NO;
     UIBarButtonItem *fixedSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:self action:nil];
-    fixedSpace.width = 32; // To balance action button
+    fixedSpace.width = 20; // To balance action button
     UIBarButtonItem *flexSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:self action:nil];
     NSMutableArray *items = [[NSMutableArray alloc] init];
 
-    // Left button - Grid
-    if (_enableGrid) {
-        hasItems = YES;
-        [items addObject:[[UIBarButtonItem alloc] initWithImage:[UIImage imageForResourcePath:@"MWPhotoBrowser.bundle/UIBarButtonItemGrid" ofType:@"png" inBundle:[NSBundle bundleForClass:[self class]]] style:UIBarButtonItemStylePlain target:self action:@selector(showGridAnimated)]];
-    } else {
-        [items addObject:fixedSpace];
+    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+    CGFloat maxLbWidth = screenWidth - 100;
+    // add label item
+    NSString *firstLineText = [self.captionDic objectForKey:@"firtLine"];
+    _lb = [[UILabel alloc] initWithFrame:CGRectZero];
+    _lb.font = [UIFont systemFontOfSize:11];
+    _lb.textColor = [UIColor whiteColor];
+    _lb.text = firstLineText;
+    _lb.numberOfLines = 1;
+    [_lb sizeToFit];
+    
+    NSString *secondLineText = [self.captionDic objectForKey:@"secondLine"];
+    _lb2 = [[UILabel alloc] initWithFrame:CGRectZero];
+    _lb2.font = [UIFont systemFontOfSize:11];
+    _lb2.textColor = [UIColor colorWithRed:198.0/255 green:198.0/255 blue:198.0/255 alpha:0.5];
+    _lb2.text = secondLineText;
+    _lb2.numberOfLines = 1;
+    [_lb2 sizeToFit];
+    
+    
+    CGFloat space = 2;
+    
+    CGRect frame = _lb.frame;
+    frame.origin.x = 20;
+    frame.origin.y = (_toolbar.frame.size.height - _lb.frame.size.height - _lb2.frame.size.height - space)/2;
+    if (frame.size.width > maxLbWidth) {
+        frame.size.width = maxLbWidth;
     }
-
-    // Middle - Nav
-    if (_previousButton && _nextButton && numberOfPhotos > 1) {
-        hasItems = YES;
-        [items addObject:flexSpace];
-        [items addObject:_previousButton];
-        [items addObject:flexSpace];
-        [items addObject:_nextButton];
-        [items addObject:flexSpace];
-    } else {
-        [items addObject:flexSpace];
+    _lb.frame = frame;
+    
+    frame = _lb2.frame;
+    frame.origin.x = 20;
+    frame.origin.y = _lb.frame.origin.y + _lb.frame.size.height + space;
+    if (frame.size.width > maxLbWidth) {
+        frame.size.width = maxLbWidth;
     }
+    _lb2.frame = frame;
+    
+    [_toolbar addSubview:_lb];
+    [_toolbar addSubview:_lb2];
+    
+    [self updateTextForLabelItem];
+    
+//    UIBarButtonItem *textItem = [[UIBarButtonItem alloc] initWithCustomView:lb];
+//    [items addObject:textItem];
+    
+    [items addObject:flexSpace];
+    
 
     // Right - Action
-    if (_actionButton && !(!hasItems && !self.navigationItem.rightBarButtonItem)) {
-        [items addObject:_actionButton];
+    if (_shareButton && !(!hasItems && !self.navigationItem.rightBarButtonItem)) {
+        
+        [items addObject:_shareButton];
+        
+        [items addObject:fixedSpace];
+        
+        [items addObject:_saveButton];
+       
+       
     } else {
         // We're not showing the toolbar so try and show in top right
-        if (_actionButton)
-            self.navigationItem.rightBarButtonItem = _actionButton;
+        if (_shareButton)
+            self.navigationItem.rightBarButtonItem = _shareButton;
         [items addObject:fixedSpace];
     }
 
@@ -293,6 +380,50 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     [self tilePages];
     _performingLayout = NO;
     
+}
+
+- (void)updateTextForLabelItem {
+    
+    MWPhoto *currentImage = [self photoAtIndex:self.currentIndex];
+    if( currentImage != nil) {
+        
+        NSDictionary *commentDic = currentImage.extraData;
+        NSString *fileName = [[commentDic objectForKey:@"FILE"] objectForKey:@"REALNAME"];
+        NSString *writer = [[commentDic objectForKey:@"WRITER"] objectForKey:@"MEMBERNAME"];
+        NSInteger timeInterval = [[commentDic objectForKey:@"WDATE"] integerValue];
+        NSDateFormatter *dateformate=[[NSDateFormatter alloc]init];
+        [dateformate setDateFormat:@"dd/MM/yyyy"]; // Date formater
+        NSString *date = [dateformate stringFromDate:[NSDate dateWithTimeIntervalSince1970:timeInterval]];
+        
+        _lb.text = [NSString stringWithFormat:@"%@  %@", fileName, date];
+        [_lb sizeToFit];
+        
+        _lb2.text = writer;
+        [_lb2 sizeToFit];
+        
+        
+        CGFloat space = 2;
+        
+        CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+        CGFloat maxLbWidth = screenWidth - 130;
+        
+        CGRect frame = _lb.frame;
+        frame.origin.x = 20;
+        frame.origin.y = (_toolbar.frame.size.height - _lb.frame.size.height - _lb2.frame.size.height - space)/2;
+        if (frame.size.width > maxLbWidth) {
+            frame.size.width = maxLbWidth;
+        }
+        _lb.frame = frame;
+        
+        frame = _lb2.frame;
+        frame.origin.x = 20;
+        frame.origin.y = _lb.frame.origin.y + _lb.frame.size.height + space;
+        if (frame.size.width > maxLbWidth) {
+            frame.size.width = maxLbWidth;
+        }
+        _lb2.frame = frame;
+
+    }
 }
 
 // Release any retained subviews of the main view.
@@ -1076,45 +1207,49 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 }
 
 #pragma mark - Navigation
+#define UIColorFromRGB(rgbValue) [UIColor colorWithRed:((float)((rgbValue & 0xFF0000) >> 16))/255.0 green:((float)((rgbValue & 0x00FF00) >>  8))/255.0 blue:((float)((rgbValue & 0x0000FF) >>  0))/255.0 alpha:1.0]
 
 - (void)updateNavigation {
     
-	// Title
-    NSUInteger numberOfPhotos = [self numberOfPhotos];
-    if (_gridController) {
-        if (_gridController.selectionMode) {
-            self.title = NSLocalizedString(@"Select Photos", nil);
-        } else {
-            NSString *photosText;
-            if (numberOfPhotos == 1) {
-                photosText = NSLocalizedString(@"photo", @"Used in the context: '1 photo'");
-            } else {
-                photosText = NSLocalizedString(@"photos", @"Used in the context: '3 photos'");
-            }
-            self.title = [NSString stringWithFormat:@"%lu %@", (unsigned long)numberOfPhotos, photosText];
+    NSLog(@"updateNavigation");
+    
+    if (_isShowGrid) {
+        self.title = @"Album";
+         [self.navigationController.navigationBar setBackgroundImage:[self imageWithColor:UIColorFromRGB(0x2e86ef)] forBarMetrics:UIBarMetricsDefault];
+    }
+    else {
+        self.title = @"Photo Preview";
+        if (_gridPreviousRightNavItem != nil) {
+            self.navigationItem.rightBarButtonItem = _gridPreviousRightNavItem;
+            
         }
-    } else if (numberOfPhotos > 1) {
-        if ([_delegate respondsToSelector:@selector(photoBrowser:titleForPhotoAtIndex:)]) {
-            self.title = [_delegate photoBrowser:self titleForPhotoAtIndex:_currentPageIndex];
-        } else {
-            self.title = [NSString stringWithFormat:@"%lu %@ %lu", (unsigned long)(_currentPageIndex+1), NSLocalizedString(@"of", @"Used in the context: 'Showing 1 of 3 items'"), (unsigned long)numberOfPhotos];
-        }
-	} else {
-		self.title = nil;
-	}
-	
+        
+        [self.navigationController.navigationBar setBackgroundImage:[self imageWithColor:[UIColor blackColor]] forBarMetrics:UIBarMetricsDefault];
+        
+        [self updateTextForLabelItem];
+        
+    }
+    
+    
+    
 	// Buttons
-	_previousButton.enabled = (_currentPageIndex > 0);
-	_nextButton.enabled = (_currentPageIndex < numberOfPhotos - 1);
+//	_previousButton.enabled = (_currentPageIndex > 0);
+//	_nextButton.enabled = (_currentPageIndex < numberOfPhotos - 1);
     
     // Disable action button if there is no image or it's a video
     MWPhoto *photo = [self photoAtIndex:_currentPageIndex];
     if ([photo underlyingImage] == nil || ([photo respondsToSelector:@selector(isVideo)] && photo.isVideo)) {
-        _actionButton.enabled = NO;
-        _actionButton.tintColor = [UIColor clearColor]; // Tint to hide button
+        _shareButton.enabled = NO;
+        _shareButton.tintColor = [UIColor clearColor]; // Tint to hide button
+        
+        _saveButton.enabled = NO;
+         _saveButton.tintColor = [UIColor clearColor];
     } else {
-        _actionButton.enabled = YES;
-        _actionButton.tintColor = nil;
+        _shareButton.enabled = YES;
+        _shareButton.tintColor = nil;
+        
+        _saveButton.enabled = YES;
+        _saveButton.tintColor = nil;
     }
 	
 }
@@ -1307,6 +1442,14 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
 
 - (void)showGrid:(BOOL)animated {
 
+    _isShowGrid = true;
+    
+    _gridPreviousRightNavItem = self.navigationItem.rightBarButtonItem;
+    self.navigationItem.rightBarButtonItem = nil;
+    
+    // Update
+    [self updateNavigation];
+    
     if (_gridController) return;
     
     // Clear video
@@ -1314,7 +1457,8 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     // Init grid controller
     _gridController = [[MWGridViewController alloc] init];
-    _gridController.initialContentOffset = _currentGridContentOffset;
+    _gridController.view.backgroundColor = [UIColor whiteColor];
+    //_gridController.initialContentOffset = _currentGridContentOffset;
     _gridController.browser = self;
     _gridController.selectionMode = _displaySelectionButtons;
     _gridController.view.frame = self.view.bounds;
@@ -1329,18 +1473,19 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
     // Perform any adjustments
     [_gridController.view layoutIfNeeded];
-    [_gridController adjustOffsetsAsRequired];
+   // [_gridController adjustOffsetsAsRequired];
     
     // Hide action button on nav bar if it exists
-    if (self.navigationItem.rightBarButtonItem == _actionButton) {
-        _gridPreviousRightNavItem = _actionButton;
-        [self.navigationItem setRightBarButtonItem:nil animated:YES];
-    } else {
-        _gridPreviousRightNavItem = nil;
-    }
+//    if (self.navigationItem.rightBarButtonItem == _shareButton) {
+//        _gridPreviousRightNavItem = _shareButton;
+//        [self.navigationItem setRightBarButtonItem:nil animated:YES];
+//    } else {
+//        _gridPreviousRightNavItem = nil;
+//    }
     
-    // Update
-    [self updateNavigation];
+    
+    
+   
     [self setControlsHidden:NO animated:YES permanent:YES];
     
     // Animate grid in and photo scroller out
@@ -1348,7 +1493,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     [UIView animateWithDuration:animated ? 0.3 : 0 animations:^(void) {
         _gridController.view.frame = self.view.bounds;
         CGRect newPagingFrame = [self frameForPagingScrollView];
-        newPagingFrame = CGRectOffset(newPagingFrame, 0, (self.startOnGrid ? 1 : -1) * newPagingFrame.size.height);
+        newPagingFrame = CGRectOffset(newPagingFrame, 0, 0);
         _pagingScrollView.frame = newPagingFrame;
     } completion:^(BOOL finished) {
         [_gridController didMoveToParentViewController:self];
@@ -1356,7 +1501,24 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     
 }
 
+- (UIImage *)imageWithColor:(UIColor *)color {
+    CGRect rect = CGRectMake(0.0f, 0.0f, 2.0f, 2.0f);
+    UIGraphicsBeginImageContext(rect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    CGContextSetFillColorWithColor(context, [color CGColor]);
+    CGContextFillRect(context, rect);
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return image;
+}
+
+
 - (void)hideGrid {
+    
+    _isShowGrid = false;
     
     if (!_gridController) return;
     
@@ -1364,7 +1526,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
     _currentGridContentOffset = _gridController.collectionView.contentOffset;
     
     // Restore action button if it was removed
-    if (_gridPreviousRightNavItem == _actionButton && _actionButton) {
+    if (_gridPreviousRightNavItem == _shareButton && _shareButton) {
         [self.navigationItem setRightBarButtonItem:_gridPreviousRightNavItem animated:YES];
     }
     
@@ -1617,7 +1779,7 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
             }];
             // iOS 8 - Set the Anchor Point for the popover
             if (SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"8")) {
-                self.activityViewController.popoverPresentationController.barButtonItem = _actionButton;
+                self.activityViewController.popoverPresentationController.barButtonItem = _shareButton;
             }
             [self presentViewController:self.activityViewController animated:YES completion:nil];
 
@@ -1626,6 +1788,34 @@ static void * MWVideoPlayerObservation = &MWVideoPlayerObservation;
         // Keep controls hidden
         [self setControlsHidden:NO animated:YES permanent:YES];
 
+    }
+    
+}
+
+- (void)actionSavePhoto:(id)sender {
+    
+    MWPhoto *currentImage = [self photoAtIndex:self.currentIndex];
+    if (currentImage != nil) {
+        
+        UIImageWriteToSavedPhotosAlbum(currentImage.underlyingImage, nil, nil, nil);
+        
+        MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:self.navigationController.view animated:YES];
+        
+        // Configure for text only and offset down
+        hud.mode = MBProgressHUDModeText;
+        hud.labelText = @"Successfully save to camera roll";
+        hud.margin = 10.f;
+        hud.yOffset = 150.f;
+        hud.removeFromSuperViewOnHide = YES;
+        
+        [hud hide:true afterDelay:3.0];
+//        double delayInSeconds = 0.5;
+//        __weak typeof (self) weakSelf = self;
+//        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
+//        dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+//            //code to be executed on the main queue after delay
+//            [weakSelf hideProgressHUD:true];
+//        });
     }
     
 }

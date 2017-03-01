@@ -34,13 +34,14 @@
 	// Navigation & controls
 	UIToolbar *_toolbar;
 	NSTimer *_controlVisibilityTimer;
-	UIBarButtonItem *_previousButton, *_nextButton, *_actionButton, *_doneButton;
+	UIBarButtonItem *_previousButton, *_nextButton, *_shareButton,*_saveButton, *_doneButton;
     MBProgressHUD *_progressHUD;
     
     // Grid
     MWGridViewController *_gridController;
     UIBarButtonItem *_gridPreviousLeftNavItem;
     UIBarButtonItem *_gridPreviousRightNavItem;
+
     
     // Appearance
     BOOL _previousNavBarHidden;

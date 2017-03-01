@@ -27,6 +27,7 @@
 @property (nonatomic, strong) PHAsset *asset;
 @property (nonatomic) CGSize assetTargetSize;
 
+
 - (void)imageLoadingComplete;
 
 @end

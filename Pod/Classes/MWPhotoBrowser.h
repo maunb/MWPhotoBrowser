@@ -53,6 +53,13 @@
 @property (nonatomic) NSUInteger delayToHideElements;
 @property (nonatomic, readonly) NSUInteger currentIndex;
 
+@property (nonatomic, strong) NSDictionary *captionDic;
+@property (nonatomic, strong) UILabel *toastLb;
+
+@property (nonatomic, assign) BOOL isShowGrid;
+@property UILabel *lb;
+@property UILabel *lb2;
+
 // Customise image selection icons as they are the only icons with a colour tint
 // Icon should be located in the app's main bundle
 @property (nonatomic, strong) NSString *customImageSelectedIconName;

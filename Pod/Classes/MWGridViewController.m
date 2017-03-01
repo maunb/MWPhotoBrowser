@@ -27,8 +27,8 @@
         
         // Defaults
         _columns = 3, _columnsL = 4;
-        _margin = 0, _gutter = 1;
-        _marginL = 0, _gutterL = 1;
+        _margin = 2, _gutter = 2;
+        _marginL = 2, _gutterL = 2;
         
         // For pixel perfection...
         if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
@@ -60,7 +60,7 @@
     [super viewDidLoad];
     [self.collectionView registerClass:[MWGridCell class] forCellWithReuseIdentifier:@"GridCell"];
     self.collectionView.alwaysBounceVertical = YES;
-    self.collectionView.backgroundColor = [UIColor blackColor];
+    self.collectionView.backgroundColor = [UIColor whiteColor];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -111,7 +111,22 @@
 
 - (void)performLayout {
     UINavigationBar *navBar = self.navigationController.navigationBar;
-    self.collectionView.contentInset = UIEdgeInsetsMake(navBar.frame.origin.y + navBar.frame.size.height + [self getGutter], 0, 0, 0);
+    
+    self.collectionView.contentInset = UIEdgeInsetsMake(1, 0, 0, 0);
+}
+
+- (UIImage *)imageWithColor:(UIColor *)color {
+    CGRect rect = CGRectMake(0.0f, 0.0f, 1.0f, 1.0f);
+    UIGraphicsBeginImageContext(rect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    
+    CGContextSetFillColorWithColor(context, [color CGColor]);
+    CGContextFillRect(context, rect);
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return image;
 }
 
 - (void)willAnimateRotationToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation duration:(NSTimeInterval)duration {
@@ -181,8 +196,8 @@
 }
 
 - (CGSize)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout*)collectionViewLayout sizeForItemAtIndexPath:(NSIndexPath *)indexPath {
-    CGFloat margin = [self getMargin];
-    CGFloat gutter = [self getGutter];
+    CGFloat margin = 2;//[self getMargin];
+    CGFloat gutter = 1;//[self getGutter];
     CGFloat columns = [self getColumns];
     CGFloat value = floorf(((self.view.bounds.size.width - (columns - 1) * gutter - 2 * margin) / columns));
     return CGSizeMake(value, value);
@@ -197,7 +212,7 @@
 }
 
 - (UIEdgeInsets)collectionView:(UICollectionView *)collectionView layout:(UICollectionViewLayout*)collectionViewLayout insetForSectionAtIndex:(NSInteger)section {
-    CGFloat margin = [self getMargin];
+    CGFloat margin = 2;//[self getMargin];
     return UIEdgeInsetsMake(margin, margin, margin, margin);
 }
 
